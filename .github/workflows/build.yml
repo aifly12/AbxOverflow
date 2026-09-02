@@ -1,0 +1,56 @@
+name: Build AbxOverflow
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle (cache)
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x gradlew
+
+      # 1. Compila o APK que será "dropado" no sistema
+      #    (já assinado com a keystore commitada em droppedapk/abxdroppedapk.keystore)
+      - name: Build droppedapk (release)
+        run: ./gradlew :droppedapk:assembleRelease
+
+      # 2. Move o APK compilado para os assets do dropper
+      - name: Embed dropped APK into dropper assets
+        run: |
+          mkdir -p app/src/main/assets
+          sh utils/moveapk.sh
+          ls -la app/src/main/assets
+
+      # 3. Compila o dropper
+      - name: Build dropper app (debug, assinado)
+        run: ./gradlew :app:assembleDebug
+
+      - name: Build dropper app (release, não-assinado)
+        run: ./gradlew :app:assembleRelease
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: abxoverflow-apks
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+            droppedapk/build/outputs/apk/release/*.apk
+          if-no-files-found: error
