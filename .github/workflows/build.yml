@@ -36,11 +36,11 @@ jobs:
           ls -la app/src/main/assets
 
       # 3. Compila o dropper
-      # - name: Build dropper app (debug, assinado)
-      #  run: ./gradlew :app:assembleDebug
+      - name: Build dropper app (debug, assinado)
+        run: ./gradlew :app:assembleDebug
 
-      # - name: Build dropper app (release, não-assinado)
-      #  run: ./gradlew :app:assembleRelease
+      - name: Build dropper app (release, não-assinado)
+        run: ./gradlew :app:assembleRelease
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
