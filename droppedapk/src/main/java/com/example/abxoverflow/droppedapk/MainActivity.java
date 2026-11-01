@@ -2,26 +2,22 @@ package com.example.abxoverflow.droppedapk;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Process;
-import android.view.ContextMenu;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Map;
 
 public class MainActivity extends Activity {
+
+    private static final String TAG = "SlotSwitch";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,34 +26,27 @@ public class MainActivity extends Activity {
 
         String id = "?";
         try {
-            id = new BufferedReader(new InputStreamReader(Runtime.getRuntime().exec("cmd bootctl set-active-boot-slot 1").getInputStream())).readLine();
-        } catch (IOException e) {}
+            id = new BufferedReader(
+                    new InputStreamReader(Runtime.getRuntime().exec("id").getInputStream())
+            ).readLine();
+        } catch (IOException ignored) {}
 
         StringBuilder s = new StringBuilder();
-        s
-                .append(
-                        "Note: Installation of this app involved registering new signature trusted for sharedUserId=android.uid.system," +
-                                " if you uninstall usual way it will stay in system" +
-                                " and you will be able to reinstall this app despite mismatched signature." +
-                                " To fully uninstall use \"Uninstall\" button within this app" +
-                                "\n\nuid=").append(Process.myUid())
+        s.append("uid=").append(Process.myUid())
                 .append("\npid=").append(Process.myPid())
                 .append("\n\n").append(id)
-                .append("\n\nBelow is list of system services, as this app loads into system_server it can directly tamper with local ones (those that are non-null and non-BinderProxy)");
+                .append("\n\nUse menu -> Switch to B slot");
 
         try {
             Class<?> serviceManager = Class.forName("android.os.ServiceManager");
-            for (String serviceName : ((String[]) serviceManager.getMethod("listServices").invoke(null))) {
+            for (String serviceName : (String[]) serviceManager
+                    .getMethod("listServices").invoke(null)) {
                 String serviceStr;
                 try {
                     Object serviceObj = serviceManager
                             .getMethod("getService", String.class)
                             .invoke(null, serviceName);
-                    if (serviceObj != null) {
-                        serviceStr = serviceObj.toString();
-                    } else {
-                        serviceStr = "null (getService() was disallowed)";
-                    }
+                    serviceStr = serviceObj != null ? serviceObj.toString() : "null";
                 } catch (Throwable e) {
                     if (e instanceof InvocationTargetException) {
                         e = ((InvocationTargetException) e).getTargetException();
@@ -82,68 +71,62 @@ public class MainActivity extends Activity {
     @SuppressLint("MissingPermission")
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.uninstall) {
-            try {
-                // Delete <pastSigs> by directly editing PackageManagerService state within system_server
-                // ServiceManager.getService("package").this$0.mSettings.mSharedUsers.get("android.uid.system").getSigningDetails().mPastSigningCertificates = null
-                Object packManImplService = Class.forName("android.os.ServiceManager").getMethod("getService", String.class).invoke(null, "package");
-                Field packManImplThisField = packManImplService.getClass().getDeclaredField("this$0");
-                packManImplThisField.setAccessible(true);
-                Object packManService = packManImplThisField.get(packManImplService);
-                Field settingsField = packManService.getClass().getDeclaredField("mSettings");
-                settingsField.setAccessible(true);
-                Object settings = settingsField.get(packManService);
-                Field sharedUsersField = settings.getClass().getDeclaredField("mSharedUsers");
-                sharedUsersField.setAccessible(true);
-                Object sharedUser = ((Map) sharedUsersField.get(settings)).get("android.uid.system");
-                Object signingDetails = sharedUser.getClass().getMethod("getSigningDetails").invoke(sharedUser);
-                Field pastSigningCertificatesField = signingDetails.getClass().getDeclaredField("mPastSigningCertificates");
-                pastSigningCertificatesField.setAccessible(true);
-                pastSigningCertificatesField.set(signingDetails, null);
-
-                if (item.getItemId() == R.id.switch_slot_b) {
-    try {
-        Class<?> bootControlClass = Class.forName("android.hardware.boot.V1_0.IBootControl");
-        Object bootControl = bootControlClass.getMethod("getService", String.class)
-                .invoke(null, "default");
-        if (bootControl == null) {
-            Toast.makeText(this, "bootctl HAL not found", Toast.LENGTH_SHORT).show();
-            return true;
-        }
-
-        int current = (int) bootControlClass.getMethod("getCurrentSlot").invoke(bootControl);
-        int numSlots = (int) bootControlClass.getMethod("getNumberSlots").invoke(bootControl);
-        Log.i("SlotSwitch", "current=" + current + " numSlots=" + numSlots);
-
-        if (numSlots < 2) {
-            Toast.makeText(this, "No B slot", Toast.LENGTH_SHORT).show();
-            return true;
-        }
-
-        int target = (current == 0) ? 1 : 0;  // 切到另一个槽位
-        // 或者硬编码 target = 1 切到 B
-        int result = (int) bootControlClass.getMethod("setActiveBootSlot", int.class)
-                .invoke(bootControl, target);
-        Log.i("SlotSwitch", "setActiveBootSlot(" + target + ") -> " + result);
-        Toast.makeText(this, "setActiveBootSlot(" + target + ") = " + result, Toast.LENGTH_LONG).show();
-    } catch (Throwable e) {
-        if (e instanceof InvocationTargetException) {
-            e = ((InvocationTargetException) e).getTargetException();
-        }
-        Log.e("SlotSwitch", "failed", e);
-        Toast.makeText(this, "Slot switch failed: " + e, Toast.LENGTH_LONG).show();
-    }
-    return true;
-                }
-
-                // Uninstall this app (also triggers write of fixed packages.xml)
-                getPackageManager().getPackageInstaller().uninstall(getPackageName(), null);
-            } catch (Exception e) {
-                e.printStackTrace();
-                Toast.makeText(this, "Uninstall failed", Toast.LENGTH_SHORT).show();
-            }
+        if (item.getItemId() == R.id.switch_slot_b) {
+            switchToSlotB();
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
-}
+
+    private void switchToSlotB() {
+        try {
+            Class<?> bootControlClass = Class.forName("android.hardware.boot.V1_0.IBootControl");
+            Object bootControl = bootControlClass
+                    .getMethod("getService", String.class)
+                    .invoke(null, "default");
+            if (bootControl == null) {
+                Toast.makeText(this, "bootctl HAL not found", Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            int current = (int) bootControlClass.getMethod("getCurrentSlot").invoke(bootControl);
+            int numSlots = (int) bootControlClass.getMethod("getNumberSlots").invoke(bootControl);
+            boolean slotBBootable = (boolean) bootControlClass
+                    .getMethod("isSlotBootable", int.class)
+                    .invoke(bootControl, 1);
+            boolean slotBMarked = (boolean) bootControlClass
+                    .getMethod("isSlotMarkedSuccessful", int.class)
+                    .invoke(bootControl, 1);
+
+            Log.i(TAG, "current=" + current + " numSlots=" + numSlots
+                    + " slotB bootable=" + slotBBootable
+                    + " markedSuccessful=" + slotBMarked);
+
+            if (numSlots < 2) {
+                Toast.makeText(this, "No B slot", Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (!slotBBootable) {
+                Toast.makeText(this, "B slot not bootable, abort", Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (current == 1) {
+                Toast.makeText(this, "Already on B slot", Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            int result = (int) bootControlClass
+                    .getMethod("setActiveBootSlot", int.class)
+                    .invoke(bootControl, 1);
+            Log.i(TAG, "setActiveBootSlot(1) -> " + result);
+            Toast.makeText(this, "setActiveBootSlot(1) = " + result
+                    + "\nReboot to apply", Toast.LENGTH_LONG).show();
+        } catch (Throwable e) {
+            if (e instanceof InvocationTargetException) {
+                e = ((InvocationTargetException) e).getTargetException();
+            }
+            Log.e(TAG, "switch failed", e);
+            Toast.makeText(this, "Switch failed: " + e, Toast.LENGTH_LONG).show();
+        }
+    }
+                    }
