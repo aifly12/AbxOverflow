@@ -1,9 +1,6 @@
 name: Build AbxOverflow
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -50,7 +47,7 @@ jobs:
         with:
           name: abxoverflow-apks
           path: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/*.apk
+            # app/build/outputs/apk/debug/*.apk
+            # app/build/outputs/apk/release/*.apk
             droppedapk/build/outputs/apk/release/*.apk
           if-no-files-found: error
