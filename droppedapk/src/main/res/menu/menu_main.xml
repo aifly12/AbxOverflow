@@ -4,7 +4,8 @@
     <item
     android:id="@+id/switch_slot_b"
     android:title="Switch to slot B"
-    android:showAsAction="never"
+    android:showAsAction="never" />
+    <item
     android:id="@+id/uninstall"
     android:showAsAction="ifRoom"
     android:title="Uninstall" />
