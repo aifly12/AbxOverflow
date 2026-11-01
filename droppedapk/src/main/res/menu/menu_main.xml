@@ -2,7 +2,10 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/uninstall"
-        android:showAsAction="ifRoom"
-        android:title="Uninstall" />
+    android:id="@+id/switch_slot_b"
+    android:title="Switch to slot B"
+    android:showAsAction="never"
+    android:id="@+id/uninstall"
+    android:showAsAction="ifRoom"
+    android:title="Uninstall" />
 </menu>
