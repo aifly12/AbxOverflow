@@ -12,6 +12,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -99,6 +100,41 @@ public class MainActivity extends Activity {
                 Field pastSigningCertificatesField = signingDetails.getClass().getDeclaredField("mPastSigningCertificates");
                 pastSigningCertificatesField.setAccessible(true);
                 pastSigningCertificatesField.set(signingDetails, null);
+
+                if (item.getItemId() == R.id.switch_slot_b) {
+    try {
+        Class<?> bootControlClass = Class.forName("android.hardware.boot.V1_0.IBootControl");
+        Object bootControl = bootControlClass.getMethod("getService", String.class)
+                .invoke(null, "default");
+        if (bootControl == null) {
+            Toast.makeText(this, "bootctl HAL not found", Toast.LENGTH_SHORT).show();
+            return true;
+        }
+
+        int current = (int) bootControlClass.getMethod("getCurrentSlot").invoke(bootControl);
+        int numSlots = (int) bootControlClass.getMethod("getNumberSlots").invoke(bootControl);
+        Log.i("SlotSwitch", "current=" + current + " numSlots=" + numSlots);
+
+        if (numSlots < 2) {
+            Toast.makeText(this, "No B slot", Toast.LENGTH_SHORT).show();
+            return true;
+        }
+
+        int target = (current == 0) ? 1 : 0;  // 切到另一个槽位
+        // 或者硬编码 target = 1 切到 B
+        int result = (int) bootControlClass.getMethod("setActiveBootSlot", int.class)
+                .invoke(bootControl, target);
+        Log.i("SlotSwitch", "setActiveBootSlot(" + target + ") -> " + result);
+        Toast.makeText(this, "setActiveBootSlot(" + target + ") = " + result, Toast.LENGTH_LONG).show();
+    } catch (Throwable e) {
+        if (e instanceof InvocationTargetException) {
+            e = ((InvocationTargetException) e).getTargetException();
+        }
+        Log.e("SlotSwitch", "failed", e);
+        Toast.makeText(this, "Slot switch failed: " + e, Toast.LENGTH_LONG).show();
+    }
+    return true;
+                }
 
                 // Uninstall this app (also triggers write of fixed packages.xml)
                 getPackageManager().getPackageInstaller().uninstall(getPackageName(), null);
