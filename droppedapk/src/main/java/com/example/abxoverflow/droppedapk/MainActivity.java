@@ -96,15 +96,6 @@ public class MainActivity extends Activity {
 
         Log.i(TAG, "current=" + current + " numSlots=" + numSlots
                 + " slotB bootable=" + slotBBootable + " marked=" + slotBMarked);
-
-        if (numSlots < 2) {
-            Toast.makeText(this, "No B slot", Toast.LENGTH_LONG).show();
-            return;
-        }
-        if (slotBBootable != 1) {
-            Toast.makeText(this, "B slot not bootable, abort", Toast.LENGTH_LONG).show();
-            return;
-        }
         if (current == 1) {
             Toast.makeText(this, "Already on B slot", Toast.LENGTH_LONG).show();
             return;
