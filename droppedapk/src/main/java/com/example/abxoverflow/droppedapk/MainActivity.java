@@ -71,7 +71,7 @@ public class MainActivity extends Activity {
     @SuppressLint("MissingPermission")
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.switch_slot_b) {
+        if (item.getItemId() == R.id.switch_inactive_slot) {
             switchToInactiveSlot();
             return true;
     }
