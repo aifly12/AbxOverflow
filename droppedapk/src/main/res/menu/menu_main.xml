@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/switch_slot_b"
-        android:title="Switch to B slot" />
+        android:id="@+id/switch_inactive_slot"
+        android:title="Switch to inactive slot" />
 </menu>
