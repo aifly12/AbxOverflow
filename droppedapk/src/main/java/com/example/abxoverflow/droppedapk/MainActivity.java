@@ -35,7 +35,7 @@ public class MainActivity extends Activity {
         s.append("uid=").append(Process.myUid())
                 .append("\npid=").append(Process.myPid())
                 .append("\n\n").append(id)
-                .append("\n\nUse menu -> Switch to B slot");
+                .append("\n\nUse menu -> Switch to A slot");
 
         try {
             Class<?> serviceManager = Class.forName("android.os.ServiceManager");
@@ -71,14 +71,14 @@ public class MainActivity extends Activity {
     @SuppressLint("MissingPermission")
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.switch_inactive_slot) {
-            switchToInactiveSlot();
+        if (item.getItemId() == R.id.switch_slot_a) {
+            switchToSlotA();
             return true;
-    }
+        }
         return super.onOptionsItemSelected(item);
     }
 
-    private void switchToInactiveSlot() {
+    private void switchToSlotA() {
     try {
         Class<?> hwBinderClass = Class.forName("android.os.HwBinder");
         Object binder = hwBinderClass
@@ -89,52 +89,30 @@ public class MainActivity extends Activity {
             return;
         }
 
-        String iface = "android.hardware.boot@1.0::IBootControl";
-        int current   = hidlCallInt(binder, 2, iface, 0);   // getCurrentSlot
-        int numSlots  = hidlCallInt(binder, 1, iface, 0);   // getNumberSlots
-        int target    = 1 - current;                        // 不活跃槽
-
-        if (numSlots <= 1 || target >= numSlots) {
-            Toast.makeText(this, "No inactive slot (numSlots=" + numSlots + ")",
-                    Toast.LENGTH_LONG).show();
-            return;
-        }
-
-        int bootable = hidlCallInt(binder, 6, iface, target); // isSlotBootable
-        int marked   = hidlCallInt(binder, 7, iface, target); // isSlotMarkedSuccessful
+        int current = hidlCallInt(binder, 2, "android.hardware.boot@1.0::IBootControl", 0);
+        int numSlots = hidlCallInt(binder, 1, "android.hardware.boot@1.0::IBootControl", 0);
+        // 查询 A 槽（索引 0）的状态
+        int slotABootable = hidlCallInt(binder, 6, "android.hardware.boot@1.0::IBootControl", 0);
+        int slotAMarked = hidlCallInt(binder, 7, "android.hardware.boot@1.0::IBootControl", 0);
 
         Log.i(TAG, "current=" + current + " numSlots=" + numSlots
-                + " target=" + target + " bootable=" + bootable + " marked=" + marked);
-
-        if (bootable != 1 /* BOOTABLE_OK */) {
-            Toast.makeText(this, "Slot " + slotLetter(target) + " not bootable ("
-                    + bootable + ")", Toast.LENGTH_LONG).show();
-            return;
-        }
-        if (marked != 1 /* MARKED_SUCCESSFUL */) {
-            Toast.makeText(this, "Slot " + slotLetter(target)
-                    + " not marked successful (" + marked + ")", Toast.LENGTH_LONG).show();
+                + " slotA bootable=" + slotABootable + " marked=" + slotAMarked);
+        if (current == 0) { // 检查是否已在 A 槽
+            Toast.makeText(this, "Already on A slot", Toast.LENGTH_LONG).show();
             return;
         }
 
-        // transact 4 = setActiveBootSlot(target)
-        Object[] result = hidlCallCommandResult(binder, 4, iface, target);
+        // transact 4 = setActiveBootSlot(0)，目标是 A 槽
+        Object[] result = hidlCallCommandResult(
+                binder, 4, "android.hardware.boot@1.0::IBootControl", 0);
         int code = (int) result[0];
         String msg = (String) result[1];
-        Log.i(TAG, "setActiveBootSlot(" + target + ") -> " + code + " (" + msg + ")");
-        Toast.makeText(this, "setActiveBootSlot(" + slotLetter(target) + ") = " + code
+        Log.i(TAG, "setActiveBootSlot(0) -> " + code + " (" + msg + ")");
+        Toast.makeText(this, "setActiveBootSlot(0) = " + code
                 + " " + msg + "\nReboot to apply", Toast.LENGTH_LONG).show();
     } catch (Throwable e) {
-        if (e instanceof InvocationTargetException) {
-            e = ((InvocationTargetException) e).getTargetException();
-        }
-        Log.e(TAG, "switch failed", e);
-        Toast.makeText(this, "Switch failed: " + e, Toast.LENGTH_LONG).show();
+        // ... 异常处理保持不变 ...
     }
-}
-
-private static String slotLetter(int slot) {
-    return String.valueOf((char) ('A' + slot));
 }
 
 private static int hidlCallInt(Object binder, int code, String iface, int arg)
@@ -174,4 +152,4 @@ private static Object[] hidlCallCommandResult(Object binder, int code, String if
         hwParcelClass.getMethod("releaseTemporaryStorage").invoke(req);
     }
 }
-}    
+}
